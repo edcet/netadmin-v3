@@ -177,29 +177,25 @@ zapret_verify() {
 }
 
 zapret_export_metrics() {
-    # Export metrics for observability
-    local metrics=""
-    
+    # Export metrics for observability (POSIX-compliant)
     if zapret_is_running; then
-        metrics="${metrics}netadmin_zapret_running 1\n"
+        printf "netadmin_zapret_running 1\n"
         
         local pid
         pid="$(cat "$NFQWS_PID" 2>/dev/null || echo '0')"
-        metrics="${metrics}netadmin_zapret_pid ${pid}\n"
+        printf "netadmin_zapret_pid %s\n" "$pid"
         
         # CPU/Memory if available
         if [ -d "/proc/$pid" ]; then
             local cpu mem
             cpu="$(ps -p "$pid" -o %cpu= 2>/dev/null | tr -d ' ' || echo '0')"
             mem="$(ps -p "$pid" -o %mem= 2>/dev/null | tr -d ' ' || echo '0')"
-            metrics="${metrics}netadmin_zapret_cpu ${cpu}\n"
-            metrics="${metrics}netadmin_zapret_mem ${mem}\n"
+            printf "netadmin_zapret_cpu %s\n" "$cpu"
+            printf "netadmin_zapret_mem %s\n" "$mem"
         fi
     else
-        metrics="${metrics}netadmin_zapret_running 0\n"
+        printf "netadmin_zapret_running 0\n"
     fi
-    
-    echo -e "$metrics"
 }
 
 case "${1:-status}" in
