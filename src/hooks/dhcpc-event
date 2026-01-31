@@ -1,0 +1,57 @@
+#!/bin/sh
+# DHCP Client Event Hook
+# Called by udhcpc when DHCP state changes
+# Usage: dhcpc-event <deconfig|bound|renew|leasefail>
+
+set -u
+
+EVENT_TYPE="${1:-}"
+
+. /jffs/scripts/netadmin/core/netadmin-lib.sh
+
+case "$EVENT_TYPE" in
+    bound)
+        log_info "DHCP bound: $ip on $interface"
+        set_state "$STATE_RULES_APPLY"
+        
+        # Apply current profile
+        local profile
+        profile="$(nvram_get netadmin_mode safe)"
+        if apply_rules "$profile"; then
+            set_state "$STATE_ACTIVE"
+            log_info "Rules applied for profile: $profile"
+        else
+            log_error "Failed to apply rules for profile: $profile"
+            apply_rules "safe"
+            set_state "$STATE_SAFE"
+        fi
+        ;;
+    
+    renew)
+        log_info "DHCP renewing: $ip"
+        # Verify rules still active
+        local profile
+        profile="$(nvram_get netadmin_mode safe)"
+        if ! verify_rules_active "$profile"; then
+            log_warn "Rules lost during renew, re-applying"
+            apply_rules "$profile"
+        fi
+        ;;
+    
+    deconfig)
+        log_warn "DHCP deconfig - lost IP"
+        apply_rules "safe"
+        set_state "$STATE_SAFE"
+        ;;
+    
+    leasefail)
+        log_error "DHCP lease failed"
+        apply_rules "safe"
+        set_state "$STATE_SAFE"
+        ;;
+    
+    *)
+        log_error "Unknown DHCP event: $EVENT_TYPE"
+        exit 1
+        ;;
+esac

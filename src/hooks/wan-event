@@ -1,0 +1,35 @@
+#!/bin/sh
+# Merlin WAN Event Hook
+# Called when WAN interface state changes
+# Usage: wan-event <unit> <connected|disconnected|stopped>
+
+set -u
+
+WAN_UNIT="${1:-0}"
+WAN_STATE="${2:-}"
+
+. /jffs/scripts/netadmin/core/netadmin-lib.sh
+
+case "$WAN_STATE" in
+    connected)
+        log_info "WAN $WAN_UNIT connected"
+        set_state "$STATE_WAN_WAIT"
+        ;;
+    
+    disconnected)
+        log_warn "WAN $WAN_UNIT disconnected"
+        apply_rules "safe"
+        set_state "$STATE_SAFE"
+        ;;
+    
+    stopped)
+        log_info "WAN $WAN_UNIT stopped"
+        apply_rules "safe"
+        set_state "$STATE_SAFE"
+        ;;
+    
+    *)
+        log_error "Unknown WAN event: $WAN_STATE"
+        exit 1
+        ;;
+esac
