@@ -1,38 +1,73 @@
-.PHONY: help install-dev test lint test-router release clean
+# netadmin v3.0 Makefile
+# Development and testing tasks
 
-HELP_INDENT = 15
+.PHONY: help test test-unit test-integration test-setup validate lint clean install
 
-help: ## Show this help message
-	@echo "netadmin v3.0 Development Targets"
+help:
+	@echo "netadmin v3.0 Development Tasks"
+	@echo "================================"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-$(HELP_INDENT)s %s\n", $$1, $$2}'
+	@echo "Testing:"
+	@echo "  make test              Run all tests"
+	@echo "  make test-unit         Run unit tests only"
+	@echo "  make test-integration  Run integration tests"
+	@echo "  make test-setup        Setup test environment"
+	@echo ""
+	@echo "Validation:"
+	@echo "  make validate          Run pre-commit validation"
+	@echo "  make lint              Run ShellCheck"
+	@echo ""
+	@echo "Installation:"
+	@echo "  make install           Install netadmin (requires root)"
+	@echo "  make install-zapret    Install zapret DPI bypass"
+	@echo ""
+	@echo "Cleanup:"
+	@echo "  make clean             Remove build artifacts"
 
-install-dev: ## Install development dependencies
-	@echo "Installing dev dependencies..."
-	@command -v shellspec >/dev/null 2>&1 || npm install -g shellspec
-	@command -v shellcheck >/dev/null 2>&1 || brew install shellcheck || apt-get install shellcheck
-	@echo "Done."
+test-setup:
+	@echo "Setting up test environment..."
+	sh tests/setup.sh
 
-lint: ## Run ShellCheck on all scripts
-	@echo "Linting scripts..."
-	@find src tests -name '*.sh' -type f | xargs shellcheck --config=.shellcheckrc
-	@echo "✓ Lint passed"
+test-unit: test-setup
+	@echo "Running unit tests..."
+	PATH="tests/mocks:$$PATH" shellspec tests/spec/*_spec.sh
 
-test: lint ## Run all tests (lint + unit + integration)
-	@echo "Running tests..."
-	@shellspec -f d
+test-integration: test-setup
+	@echo "Running integration tests..."
+	PATH="tests/mocks:$$PATH" shellspec tests/spec/integration_spec.sh
 
-test-router: ## Run tests in BusyBox container (simulated router)
-	@echo "Running tests in router environment..."
-	@docker run --rm -v $(PWD):/netadmin busybox:latest \
-		/bin/sh -c 'cd /netadmin && shellspec -f d'
+test: test-unit test-integration
+	@echo "✓ All tests passed"
 
-release: clean lint test ## Build release artifacts
-	@echo "Building release..."
-	@mkdir -p dist/
-	@tar -czf dist/netadmin-v3.tar.gz src/ install/ docs/
-	@echo "✓ Release built: dist/netadmin-v3.tar.gz"
+lint:
+	@echo "Running ShellCheck..."
+	@find src tests install -name '*.sh' -type f -o -name 'netadmin' | xargs shellcheck
 
-clean: ## Clean build artifacts
-	@rm -rf dist/
-	@echo "✓ Cleaned"
+validate:
+	@echo "Running validation checks..."
+	sh tests/validate.sh
+
+install:
+	@echo "Installing netadmin v3.0..."
+	@if [ "$$(id -u)" != "0" ]; then \
+		echo "ERROR: Must run as root"; \
+		exit 1; \
+	fi
+	sh install/install.sh
+
+install-zapret:
+	@echo "Installing zapret DPI bypass..."
+	@if [ "$$(id -u)" != "0" ]; then \
+		echo "ERROR: Must run as root"; \
+		exit 1; \
+	fi
+	sh install/zapret-setup.sh
+
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -rf .local/
+	rm -f /tmp/nvram_mock_*
+	rm -f /tmp/iptables_mock_*
+	rm -f /tmp/ip_mock_*
+	rm -f /tmp/mock_syslog_*
+	@echo "✓ Clean complete"

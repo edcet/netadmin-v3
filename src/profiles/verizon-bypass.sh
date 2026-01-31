@@ -1,47 +1,54 @@
 #!/bin/sh
-# netadmin VERIZON-BYPASS Profile
-# Full DPI bypass using zapret (NFQUEUE)
+# Verizon Bypass Profile (Zapret DPI Bypass)
+# Uses nfqws to bypass Verizon's DPI throttling
+# WARNING: Significant performance impact (~90% throughput reduction)
 
 set -u
 
-log_warn "Applying VERIZON-BYPASS profile (DPI bypass)"
-log_warn "WARNING: Throughput will reduce to ~200 Mbps due to NFQUEUE bottleneck"
-log_warn "See PERFORMANCE.md for details"
+. /jffs/scripts/netadmin/core/netadmin-lib.sh
+. /jffs/scripts/netadmin/core/zapret-manager.sh
 
-# Disable ALL hardware acceleration
-log_info "Disabling hardware acceleration (CTF, FC, Runner)"
+log_info "Applying VERIZON-BYPASS profile (Zapret DPI bypass)"
+
+# 1. Hardware acceleration MUST be disabled for NFQUEUE
+log_info "Disabling hardware acceleration (required for NFQUEUE)..."
 nvram set ctf_disable=1
 nvram set fc_disable=1
 nvram set runner_disable_force=1
 nvram commit
 
-# Apply TTL spoofing first
-log_info "Enabling TTL spoofing layer"
-iptables -t mangle -N NETADMIN_TTL_CLAMP 2>/dev/null || true
-iptables -t mangle -A NETADMIN_TTL_CLAMP -j TTL --ttl-set 65
-iptables -t mangle -I FORWARD -j NETADMIN_TTL_CLAMP 2>/dev/null || true
-
-# Create zapret chain
-iptables -t filter -N NETADMIN_ZAPRET 2>/dev/null || true
-
-# Mark packets for NFQUEUE (zapret will intercept)
-iptables -t mangle -N NETADMIN_MARK_DPI 2>/dev/null || true
-iptables -t mangle -A NETADMIN_MARK_DPI -j MARK --set-mark 1
-iptables -t mangle -I FORWARD -j NETADMIN_MARK_DPI 2>/dev/null || true
-
-# Start zapret daemon if not running
-if ! pgrep -f nfqws >/dev/null 2>&1; then
-    log_info "Starting zapret daemon (nfqws)"
-    # Assuming zapret is installed at /opt/zapret or /jffs/zapret
-    if [ -x /opt/zapret/nfqws ]; then
-        /opt/zapret/nfqws --dpi-desync=ipv4,ssl --dpi-desync-split=2 --dpi-desync-msfix=1 -q 1 &
-    elif [ -x /jffs/zapret/nfqws ]; then
-        /jffs/zapret/nfqws --dpi-desync=ipv4,ssl --dpi-desync-split=2 --dpi-desync-msfix=1 -q 1 &
-    else
-        log_error "zapret not found at /opt/zapret or /jffs/zapret"
-        log_error "Please install zapret first"
-        return 1
-    fi
+# Reload acceleration settings
+if command -v fc >/dev/null 2>&1; then
+    fc disable 2>/dev/null || true
 fi
 
-log_info "VERIZON-BYPASS profile applied"
+# 2. Create netadmin chains
+log_info "Creating netadmin iptables chains..."
+
+# Mangle table for NFQUEUE
+iptables -t mangle -N NETADMIN_ZAPRET 2>/dev/null || true
+iptables -t mangle -F NETADMIN_ZAPRET
+
+# 3. Start zapret service
+log_info "Starting zapret DPI bypass..."
+if zapret_start; then
+    log_info "Zapret started successfully"
+else
+    log_error "Failed to start zapret"
+    log_error "Falling back to safe profile"
+    # Fallback to safe
+    . /jffs/scripts/netadmin/profiles/safe.sh
+    return 1
+fi
+
+# 4. Verify rules applied
+if zapret_verify; then
+    log_info "VERIZON-BYPASS profile applied successfully"
+    log_warn "Performance impact: ~90% throughput reduction expected"
+    log_info "Monitor with: netadmin show-hardware"
+else
+    log_error "Zapret verification failed"
+    return 1
+fi
+
+return 0
