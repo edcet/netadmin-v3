@@ -1,0 +1,37 @@
+#!/bin/sh
+# Merlin services-start Hook
+# Called after all system services start (boot)
+# Sets up watchdogs and state machine
+
+set -u
+
+. /jffs/scripts/netadmin/core/netadmin-lib.sh
+
+log_info "netadmin: Starting watchdogs and state machine"
+
+# Initialize state if not already set
+if [ ! -f "$NETADMIN_STATE_FILE" ]; then
+    echo "$STATE_INIT" > "$NETADMIN_STATE_FILE"
+    log_info "Initialized state to INIT"
+fi
+
+# Check boot watchdog
+if should_fallback_safe; then
+    log_error "Multiple boot failures detected, activating SAFE profile"
+    apply_rules "safe"
+    reset_boot_attempt
+    set_state "$STATE_SAFE"
+    nvram_set "netadmin_mode" "safe"
+    nvram_commit
+else
+    # Increment boot counter
+    increment_boot_attempt
+fi
+
+# Start watchdog daemon
+if ! pgrep -f 'netadmin.*watchdog' >/dev/null 2>&1; then
+    /jffs/scripts/netadmin/core/watchdog.sh &
+    log_info "Watchdog daemon started"
+fi
+
+log_info "netadmin ready"
