@@ -1,0 +1,107 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish-ghcr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=ghcr.io/${{ github.repository_owner }}/netadmin:$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Build and push container
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.version.outputs.tag }}
+            ghcr.io/${{ github.repository_owner }}/netadmin:latest
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+  publish-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create install script
+        run: |
+          mkdir -p release/
+          cat > release/install.sh << 'EOF'
+          #!/bin/sh
+          set -e
+          
+          DRY_RUN="${1:---install}"
+          
+          echo "netadmin v3.0 Installer"
+          echo "======================="
+          
+          if [ "$DRY_RUN" = "--dry-run" ]; then
+            echo "Running in dry-run mode. No changes will be made."
+          fi
+          
+          # Download latest release
+          RELEASE_URL="https://github.com/edcet/netadmin-v3/releases/download/latest/netadmin-v3.tar.gz"
+          
+          echo "Downloading netadmin v3.0..."
+          if command -v wget >/dev/null; then
+            wget -q -O /tmp/netadmin-v3.tar.gz "$RELEASE_URL"
+          elif command -v curl >/dev/null; then
+            curl -fsSL -o /tmp/netadmin-v3.tar.gz "$RELEASE_URL"
+          else
+            echo "ERROR: curl or wget required"
+            exit 1
+          fi
+          
+          if [ "$DRY_RUN" = "--dry-run" ]; then
+            echo "Would extract to /jffs/scripts/"
+            tar -tzf /tmp/netadmin-v3.tar.gz | head -10
+            rm -f /tmp/netadmin-v3.tar.gz
+            echo "Dry-run complete. Run without --dry-run to install."
+          else
+            echo "Installing to /jffs/scripts/..."
+            mkdir -p /jffs/scripts
+            cd /jffs/scripts
+            tar -xzf /tmp/netadmin-v3.tar.gz
+            chmod +x src/hooks/*
+            chmod +x src/cli/*
+            chmod +x src/core/*.sh
+            echo "✓ Installation complete"
+            echo "Run 'netadmin help' to get started"
+          fi
+          EOF
+          chmod +x release/install.sh
+      
+      - name: Upload install script to release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: release/install.sh
