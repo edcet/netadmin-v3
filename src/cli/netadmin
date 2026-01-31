@@ -22,6 +22,7 @@ Commands:
   get-state            Show current state machine state
   show-config          Show current configuration
   show-hardware        Show hardware acceleration status
+  metrics [export|show|start-http]  Manage Prometheus metrics
   logs [tail <N>]      Show state machine logs
   health-check         Run immediate WAN health check
   verify               Verify rules are applied correctly
@@ -33,6 +34,7 @@ Commands:
 Examples:
   netadmin profile verizon
   netadmin wan-state
+  netadmin metrics show
   netadmin logs tail 20
   netadmin health-check
 
@@ -82,7 +84,7 @@ profile_switch() {
 
 show_wan_state() {
     # Update health first
-    /"$NETADMIN_ROOT"/core/wan-state.sh >/dev/null 2>&1
+    "$NETADMIN_ROOT"/core/wan-state.sh >/dev/null 2>&1
     
     # Show JSON
     if [ -f "$NETADMIN_HEALTH_JSON" ]; then
@@ -100,7 +102,7 @@ show_state() {
 }
 
 show_config() {
-    local mode hardware
+    local mode
     mode="$(nvram_get netadmin_mode safe)"
     
     echo "netadmin Configuration"
@@ -135,6 +137,11 @@ show_hardware() {
             echo "  WARNING: Expect ~90% throughput reduction due to NFQUEUE"
             ;;
     esac
+}
+
+manage_metrics() {
+    local action="${1:-show}"
+    sh "$NETADMIN_ROOT/core/metrics.sh" "$action"
 }
 
 show_logs() {
@@ -298,6 +305,9 @@ main() {
             ;;
         show-hardware)
             show_hardware
+            ;;
+        metrics)
+            manage_metrics "${2:-show}"
             ;;
         logs)
             show_logs "${2:-20}"

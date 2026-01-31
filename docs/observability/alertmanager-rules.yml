@@ -1,0 +1,60 @@
+# AlertManager Rules for netadmin v3.0
+# Deploy to Prometheus alerting rules
+
+groups:
+  - name: netadmin_alerts
+    interval: 30s
+    rules:
+      - alert: NetadminWANDown
+        expr: netadmin_wan_ready == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "netadmin WAN is down"
+          description: "WAN interface has been down for 5 minutes. Check carrier and DHCP."
+      
+      - alert: NetadminStateMachineStuck
+        expr: netadmin_state_current < 3 and netadmin_uptime_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "netadmin state machine stuck"
+          description: "State machine has not reached ACTIVE state after 5 minutes. Current state: {{ $value }}."
+      
+      - alert: NetadminBootLoopDetected
+        expr: netadmin_boot_attempts >= 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "netadmin boot loop detected"
+          description: "Router has failed to boot 3 times. netadmin has activated SAFE profile."
+      
+      - alert: NetadminTCPHealthFailed
+        expr: netadmin_wan_tcp_health == 0 and netadmin_wan_carrier == 1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "netadmin TCP health check failing"
+          description: "TCP health check is failing despite carrier being up. Possible blackhole WAN or firewall block."
+      
+      - alert: NetadminZapretCrashed
+        expr: netadmin_profile_verizon_bypass == 1 and netadmin_zapret_running == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Zapret DPI bypass crashed"
+          description: "verizon-bypass profile is active but nfqws is not running. DPI bypass is not functional."
+      
+      - alert: NetadminStateFlapping
+        expr: rate(netadmin_state_current[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "netadmin state machine flapping"
+          description: "State machine is changing states rapidly. Check WAN stability and logs."
