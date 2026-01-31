@@ -1,0 +1,100 @@
+#!/bin/sh
+# Mock iptables for testing
+# Simulates iptables behavior without kernel interaction
+
+set -u
+
+IPTABLES_STATE="${IPTABLES_STATE:-/tmp/iptables_mock_$$}"
+
+# Initialize
+if [ ! -f "$IPTABLES_STATE" ]; then
+    echo "# Mock iptables state" > "$IPTABLES_STATE"
+fi
+
+# Parse arguments
+action=""
+table="filter"
+chain=""
+rule=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -t)
+            table="$2"
+            shift 2
+            ;;
+        -A|-I|-D)
+            action="${1#-}"
+            chain="$2"
+            shift 2
+            ;;
+        -N)
+            action="N"
+            chain="$2"
+            shift 2
+            ;;
+        -L)
+            action="L"
+            shift
+            if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
+                chain="$1"
+                shift
+            fi
+            ;;
+        -F)
+            action="F"
+            shift
+            ;;
+        *)
+            rule="$rule $1"
+            shift
+            ;;
+    esac
+done
+
+case "$action" in
+    A|I)
+        # Append/Insert rule
+        echo "[$table] $chain:$rule" >> "$IPTABLES_STATE"
+        ;;
+    
+    D)
+        # Delete rule
+        # Simple mock: remove first matching line
+        if [ -n "$rule" ]; then
+            sed -i "\|\[$table\] $chain:.*$rule|d" "$IPTABLES_STATE"
+        fi
+        ;;
+    
+    N)
+        # Create new chain
+        echo "[$table] CHAIN:$chain" >> "$IPTABLES_STATE"
+        ;;
+    
+    L)
+        # List rules
+        if [ -n "$chain" ]; then
+            grep "\[$table\] $chain:" "$IPTABLES_STATE" 2>/dev/null | sed "s/\[$table\] $chain://" || true
+        else
+            grep "\[$table\]" "$IPTABLES_STATE" 2>/dev/null || echo "Chain INPUT (policy ACCEPT)"
+        fi
+        ;;
+    
+    F)
+        # Flush rules
+        if [ -n "$chain" ]; then
+            sed -i "\|\[$table\] $chain:|d" "$IPTABLES_STATE"
+        else
+            sed -i "\|\[$table\]|d" "$IPTABLES_STATE"
+        fi
+        ;;
+    
+    "")
+        # No action, just exit
+        ;;
+    
+    *)
+        echo "Mock iptables: unknown action $action" >&2
+        exit 1
+        ;;
+esac

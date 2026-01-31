@@ -1,0 +1,8 @@
+#!/bin/sh
+# Mock logger for testing
+# Captures syslog messages to file
+
+LOG_FILE="${LOG_FILE:-/tmp/mock_syslog_$$}"
+
+# Append message to log file
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"

@@ -1,0 +1,68 @@
+#!/bin/sh
+# Mock nvram command for testing
+# Simulates ASUSWRT nvram behavior
+
+set -u
+
+NVRAM_FIXTURE="${NVRAM_FIXTURE:-tests/fixtures/nvram/clean_boot.txt}"
+NVRAM_STORE="${NVRAM_STORE:-/tmp/nvram_mock_$$}"
+
+# Initialize mock store if not exists
+if [ ! -f "$NVRAM_STORE" ]; then
+    if [ -f "$NVRAM_FIXTURE" ]; then
+        cp "$NVRAM_FIXTURE" "$NVRAM_STORE"
+    else
+        touch "$NVRAM_STORE"
+    fi
+fi
+
+case "${1:-}" in
+    get)
+        key="$2"
+        # Read from mock store
+        if grep -q "^${key}=" "$NVRAM_STORE" 2>/dev/null; then
+            grep "^${key}=" "$NVRAM_STORE" | head -1 | cut -d= -f2-
+        else
+            # Return empty (nvram behavior)
+            echo ""
+        fi
+        ;;
+    
+    set)
+        # Format: nvram set key=value
+        pair="$2"
+        key="${pair%%=*}"
+        value="${pair#*=}"
+        
+        # Update or append
+        if grep -q "^${key}=" "$NVRAM_STORE" 2>/dev/null; then
+            # Update existing
+            sed -i "s|^${key}=.*|${key}=${value}|" "$NVRAM_STORE"
+        else
+            # Append new
+            echo "${key}=${value}" >> "$NVRAM_STORE"
+        fi
+        ;;
+    
+    commit)
+        # In real nvram, this writes to flash
+        # In mock, we just sync to ensure writes are visible
+        sync
+        ;;
+    
+    show)
+        # Show all NVRAM
+        cat "$NVRAM_STORE" 2>/dev/null || true
+        ;;
+    
+    unset)
+        key="$2"
+        # Remove key
+        sed -i "/^${key}=/d" "$NVRAM_STORE"
+        ;;
+    
+    *)
+        echo "Mock nvram: unknown command $1" >&2
+        exit 1
+        ;;
+esac

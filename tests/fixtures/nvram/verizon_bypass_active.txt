@@ -1,0 +1,10 @@
+# Active Verizon-Bypass profile NVRAM state
+netadmin_mode=verizon-bypass
+netadmin_state=3
+netadmin_ttl_mode=off
+netadmin_zapret=1
+netadmin_debug=0
+ctf_disable=1
+fc_disable=1
+runner_disable_force=1
+productid=GT-AX6000
