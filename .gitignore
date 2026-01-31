@@ -1,0 +1,27 @@
+# Build artifacts
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Testing
+.coverage/
+*.log
+test-results/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Router backups (if testing locally)
+*.backup
+*.bak
+
+# Environment
+.env
+.env.local
+*.pem
+*.key
