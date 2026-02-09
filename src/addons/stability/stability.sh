@@ -152,7 +152,10 @@ MSS6=$((MTU-60))
 # --- Module 1: Tether Cloak (Mangle Rules) ---
 # IPv4 TTL
 iptables -t mangle -D POSTROUTING -o "$WAN_IF" -j TTL --ttl-set "$TTL4" 2>/dev/null
-iptables -t mangle -A POSTROUTING -o "$WAN_IF" -j TTL --ttl-set "$TTL4"
+if ! iptables -t mangle -A POSTROUTING -o "$WAN_IF" -j TTL --ttl-set "$TTL4"; then
+    logger -t stability "CRITICAL: Failed to add TTL rule, firewall state inconsistent"
+    exit 1
+fi
 
 # IPv6 Hop Limit
 ip6tables -t mangle -D POSTROUTING -o "$WAN_IF" -j HL --hl-set "$HL6" 2>/dev/null
