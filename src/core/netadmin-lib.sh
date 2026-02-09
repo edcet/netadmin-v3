@@ -42,13 +42,11 @@ set_state() {
     old_state="$(get_current_state)"
 
     # Validate state transition (whitelist valid transitions)
+    # Normal flow: 0-1, 1-2, 2-3, 3-4, 4-1, 4-3
+    # Error recovery: 1-5, 2-5, 3-5, 4-5
+    # Force safe: 0-5, 2-0, 5-1
     case "$old_state-$new_state" in
-        # Normal flow
-        0-1|1-2|2-3|3-4|4-1|4-3|\
-        # Error recovery
-        1-5|2-5|3-5|4-5|\
-        # Force safe
-        0-5|2-0|5-1)
+        0-1|1-2|2-3|3-4|4-1|4-3|1-5|2-5|3-5|4-5|0-5|2-0|5-1)
             echo "$new_state" > "$NETADMIN_STATE_FILE"
             _log_state_change "$old_state" "$new_state"
             logger -t netadmin "STATE: $(state_name "$old_state") → $(state_name "$new_state")"
