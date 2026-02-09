@@ -23,10 +23,13 @@ settings_set() {
     local key="$1"
     local val="$2"
     # Remove existing key
-    if [ -f "$CUSTOM_SETTINGS" ]; then
-        grep -v "^$key=" "$CUSTOM_SETTINGS" > /tmp/settings.tmp 2>/dev/null || true
-        mv /tmp/settings.tmp "$CUSTOM_SETTINGS"
-    fi
+if [ -f "$CUSTOM_SETTINGS" ]; then
+    (
+        flock -x 200
+        grep -v "^$key=" "$CUSTOM_SETTINGS" > /tmp/settings.tmp.$$ 2>/dev/null || true
+        mv /tmp/settings.tmp.$$ "$CUSTOM_SETTINGS"
+    ) 200>"$CUSTOM_SETTINGS.lock"
+fi
     # Append new key=value
     printf '%s=%s\n' "$key" "$val" >> "$CUSTOM_SETTINGS"
 }
