@@ -1,4 +1,0 @@
-#!/bin/sh
-# Stability Framework Monitor
-pkill -f stability-monitor.sh 2>/dev/null
-nohup /jffs/addons/stability/scripts/stability-monitor.sh >/dev/null 2>&1 &

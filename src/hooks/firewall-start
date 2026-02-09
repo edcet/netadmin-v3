@@ -1,0 +1,30 @@
+#!/bin/sh
+# Merlin firewall-start Hook
+# Called before firewall initialization
+# Prepares hardware acceleration settings
+
+set -u
+
+. /jffs/scripts/netadmin/core/netadmin-lib.sh
+
+log_info "netadmin: Preparing firewall configuration"
+
+# Get current profile
+local profile
+profile="$(nvram_get netadmin_mode safe)"
+
+case "$profile" in
+    verizon|verizon-bypass)
+        # Disable hardware acceleration if needed
+        log_info "Disabling hardware acceleration for profile: $profile"
+        nvram set ctf_disable=1
+        nvram set fc_disable=1
+        nvram commit
+        ;;
+    safe)
+        # Safe mode can run with any acceleration state
+        log_info "Safe profile: no acceleration changes"
+        ;;
+esac
+
+log_info "Firewall preparation complete"

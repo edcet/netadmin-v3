@@ -1,0 +1,10 @@
+# Clean boot NVRAM state (safe profile)
+netadmin_mode=safe
+netadmin_state=0
+netadmin_ttl_mode=off
+netadmin_zapret=0
+netadmin_debug=0
+ctf_disable=0
+fc_disable=0
+runner_disable_force=0
+productid=GT-AX6000

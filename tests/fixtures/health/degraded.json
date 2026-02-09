@@ -1,0 +1,11 @@
+{
+  "interface": "eth0",
+  "carrier_up": 1,
+  "ip_acquired": "192.168.100.5",
+  "default_route": 1,
+  "gateway_reachable": 0,
+  "tcp_health": 0,
+  "ready": 0,
+  "state": "DEGRADED",
+  "timestamp": "2026-01-31T17:18:00Z"
+}
