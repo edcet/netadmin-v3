@@ -23,13 +23,10 @@ settings_set() {
     local key="$1"
     local val="$2"
     # Remove existing key
-if [ -f "$CUSTOM_SETTINGS" ]; then
-    (
-        flock -x 200
-        grep -v "^$key=" "$CUSTOM_SETTINGS" > /tmp/settings.tmp.$$ 2>/dev/null || true
-        mv /tmp/settings.tmp.$$ "$CUSTOM_SETTINGS"
-    ) 200>"$CUSTOM_SETTINGS.lock"
-fi
+    if [ -f "$CUSTOM_SETTINGS" ]; then
+        grep -v "^$key=" "$CUSTOM_SETTINGS" > /tmp/settings.tmp 2>/dev/null || true
+        mv /tmp/settings.tmp "$CUSTOM_SETTINGS"
+    fi
     # Append new key=value
     printf '%s=%s\n' "$key" "$val" >> "$CUSTOM_SETTINGS"
 }
@@ -129,7 +126,7 @@ CUSTOM_SETTINGS="/jffs/addons/custom_settings.txt"
 [ ! -f "$CUSTOM_SETTINGS" ] && exit 0
 
 # Parse settings (Merlin API - direct grep for speed in hook)
-eval "$(awk -F= '/^stability_/ {gsub(/[^a-zA-Z0-9_=-]/, "", $0); print $1"=\""$2"\""}' "$CUSTOM_SETTINGS")"
+eval $(awk -F= '/^stability_/ {print $1"=\""$2"\""}' "$CUSTOM_SETTINGS")
 
 # Defaults if settings missing
 TTL4=${stability_ttl_ipv4:-65}
@@ -155,10 +152,7 @@ MSS6=$((MTU-60))
 # --- Module 1: Tether Cloak (Mangle Rules) ---
 # IPv4 TTL
 iptables -t mangle -D POSTROUTING -o "$WAN_IF" -j TTL --ttl-set "$TTL4" 2>/dev/null
-if ! iptables -t mangle -A POSTROUTING -o "$WAN_IF" -j TTL --ttl-set "$TTL4"; then
-    logger -t stability "CRITICAL: Failed to add TTL rule, firewall state inconsistent"
-    exit 1
-fi
+iptables -t mangle -A POSTROUTING -o "$WAN_IF" -j TTL --ttl-set "$TTL4"
 
 # IPv6 Hop Limit
 ip6tables -t mangle -D POSTROUTING -o "$WAN_IF" -j HL --hl-set "$HL6" 2>/dev/null

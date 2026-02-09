@@ -23,19 +23,24 @@ while :; do
     fi
 
     if [ -n "$WAN_IF" ]; then
-if command -v fping >/dev/null 2>&1; then
-    if fping -I "$WAN_IF" -c1 -t2000 "$TARGET" >/dev/null 2>&1; then
-        FAIL_COUNT=0
-    else
-        FAIL_COUNT=$((FAIL_COUNT+1))
-    fi
-else
-    if ping -I "$WAN_IF" -c1 -W2 "$TARGET" >/dev/null 2>&1; then
-        FAIL_COUNT=0
-    else
-        FAIL_COUNT=$((FAIL_COUNT+1))
-    fi
-fi
+        if command -v fping >/dev/null 2>&1; then
+            fping -I "$WAN_IF" -c1 -t2000 "$TARGET" >/dev/null 2>&1 || FAIL_COUNT=$((FAIL_COUNT+1))
+        else
+            ping -I "$WAN_IF" -c1 -W2 "$TARGET" >/dev/null 2>&1 || FAIL_COUNT=$((FAIL_COUNT+1))
+        fi
+
+        if [ $FAIL_COUNT -ge $MAX_FAILS ]; then
+            log "Interface flap detected on $WAN_IF - Resetting"
+            ifconfig "$WAN_IF" down
+            sleep 2
+            ifconfig "$WAN_IF" up
+            FAIL_COUNT=0
+            # Trigger re-application of rules
+            /jffs/scripts/firewall-start
+        else
+            # On success, reset count
+            FAIL_COUNT=0
+        fi
     fi
 
     # --- 2. Time Preservation ---
