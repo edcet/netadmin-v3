@@ -126,7 +126,7 @@ CUSTOM_SETTINGS="/jffs/addons/custom_settings.txt"
 [ ! -f "$CUSTOM_SETTINGS" ] && exit 0
 
 # Parse settings (Merlin API - direct grep for speed in hook)
-eval $(awk -F= '/^stability_/ {print $1"=\""$2"\""}' "$CUSTOM_SETTINGS")
+eval "$(awk -F= '/^stability_/ {gsub(/[^a-zA-Z0-9_=-]/, "", $0); print $1"=\""$2"\""}' "$CUSTOM_SETTINGS")"
 
 # Defaults if settings missing
 TTL4=${stability_ttl_ipv4:-65}
