@@ -60,7 +60,9 @@ ip6tables -t nat -A POSTROUTING -o "$WAN_IF" -j MASQUERADE
 
 # --- Module 3: Connectivity & Mesh ---
 # Allow Tailscale UDP (41641) if present
+iptables -D INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
 iptables -I INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
+ip6tables -D INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
 ip6tables -I INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
 
 logger -t stability "Firewall rules applied on $WAN_IF [TTL:$TTL4 HL:$HL6 MTU:$MTU]"

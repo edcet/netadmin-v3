@@ -15,7 +15,12 @@ while :; do
 
     # --- 1. USB Keepalive ---
     # Detect active interface
-    WAN_IF=$(ip link show usb0 >/dev/null 2>&1 && echo usb0 || echo eth8)
+    WAN_IF=""
+    if ip link show usb0 >/dev/null 2>&1; then
+        WAN_IF="usb0"
+    elif ip link show eth8 >/dev/null 2>&1; then
+        WAN_IF="eth8"
+    fi
 
     if [ -n "$WAN_IF" ]; then
         if command -v fping >/dev/null 2>&1; then

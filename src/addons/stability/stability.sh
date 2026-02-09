@@ -174,7 +174,9 @@ ip6tables -t nat -A POSTROUTING -o "$WAN_IF" -j MASQUERADE
 
 # --- Module 3: Connectivity & Mesh ---
 # Allow Tailscale UDP (41641) if present
+iptables -D INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
 iptables -I INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
+ip6tables -D INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
 ip6tables -I INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
 
 logger -t stability "Firewall rules applied on $WAN_IF [TTL:$TTL4 HL:$HL6 MTU:$MTU]"
@@ -186,11 +188,12 @@ HOOK_FW
     if ! grep -q "stability_restart" "$SCRIPTS_DIR/service-event" 2>/dev/null; then
         cat >> "$SCRIPTS_DIR/service-event" << 'HOOK_SE'
 
-# Stability Framework WebUI Restart
+# BEGIN STABILITY FRAMEWORK
 if [ "$1" = "restart" ] && [ "$2" = "stability_addon" ]; then
     logger -t stability "WebUI triggered restart"
     /jffs/scripts/firewall-start
 fi
+# END STABILITY FRAMEWORK
 HOOK_SE
         chmod +x "$SCRIPTS_DIR/service-event"
     fi
@@ -217,9 +220,10 @@ HOOK_WAN
     if ! grep -q "stability-monitor" "$SCRIPTS_DIR/services-start" 2>/dev/null; then
         cat >> "$SCRIPTS_DIR/services-start" << 'HOOK_SS'
 
-# Stability Framework Monitor
+# BEGIN STABILITY FRAMEWORK
 pkill -f stability-monitor.sh 2>/dev/null
 nohup /jffs/addons/stability/scripts/stability-monitor.sh >/dev/null 2>&1 &
+# END STABILITY FRAMEWORK
 HOOK_SS
         chmod +x "$SCRIPTS_DIR/services-start"
     fi
@@ -246,7 +250,12 @@ while :; do
 
     # --- 1. USB Keepalive ---
     # Detect active interface
-    WAN_IF=$(ip link show usb0 >/dev/null 2>&1 && echo usb0 || echo eth8)
+    WAN_IF=""
+    if ip link show usb0 >/dev/null 2>&1; then
+        WAN_IF="usb0"
+    elif ip link show eth8 >/dev/null 2>&1; then
+        WAN_IF="eth8"
+    fi
 
     if [ -n "$WAN_IF" ]; then
         if command -v fping >/dev/null 2>&1; then
@@ -429,9 +438,15 @@ case "${1:-status}" in
     uninstall)
         log_msg "Uninstalling Stability Framework..."
         rm -f "$SCRIPTS_DIR/firewall-start" "$SCRIPTS_DIR/wan-event"
-        # Ideally, we should use sed to remove lines from services-start/service-event,
-        # but for safety we'll leave them or comment them out if we had a robust sed pattern.
-        # For now, we remove our addon dir and symlink.
+
+        # Clean up hooks
+        if [ -f "$SCRIPTS_DIR/services-start" ]; then
+            sed -i '/# BEGIN STABILITY FRAMEWORK/,/# END STABILITY FRAMEWORK/d' "$SCRIPTS_DIR/services-start"
+        fi
+        if [ -f "$SCRIPTS_DIR/service-event" ]; then
+            sed -i '/# BEGIN STABILITY FRAMEWORK/,/# END STABILITY FRAMEWORK/d' "$SCRIPTS_DIR/service-event"
+        fi
+
         rm -rf "$ADDON_DIR"
         rm -f /www/user/stability.asp
         # Clean settings

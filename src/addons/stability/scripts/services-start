@@ -1,6 +1,8 @@
 #!/bin/sh
 # Stability Framework: Background Monitor
+# BEGIN STABILITY FRAMEWORK
 if ! pgrep -f stability-monitor.sh >/dev/null; then
     logger -t stability "Starting background monitor"
     nohup /jffs/addons/stability/scripts/stability-monitor.sh >/dev/null 2>&1 &
 fi
+# END STABILITY FRAMEWORK
