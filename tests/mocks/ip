@@ -27,7 +27,7 @@ case "$subcmd" in
         if [ "${1:-}" = "show" ]; then
             shift
             dev="${2:-eth0}"
-            
+
             ip_addr="$(grep '^ip=' "$IP_STATE" | cut -d= -f2)"
             if [ -n "$ip_addr" ]; then
                 echo "2: $dev: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500"
@@ -37,25 +37,25 @@ case "$subcmd" in
             fi
         fi
         ;;
-    
+
     route)
         # ip route show
         if [ "${1:-}" = "show" ] || [ "${1:-}" = "" ]; then
             route_exists="$(grep '^route_exists=' "$IP_STATE" | cut -d= -f2)"
             gateway="$(grep '^gateway=' "$IP_STATE" | cut -d= -f2)"
-            
+
             if [ "$route_exists" = "1" ] && [ -n "$gateway" ]; then
                 echo "default via $gateway dev eth0"
                 echo "192.168.100.0/24 dev eth0 proto kernel scope link src 192.168.100.5"
             fi
         fi
         ;;
-    
+
     link)
         # ip link show
         if [ "${1:-}" = "show" ] || [ "${1:-}" = "set" ]; then
             carrier="$(grep '^carrier=' "$IP_STATE" | cut -d= -f2)"
-            
+
             if [ "$carrier" = "1" ]; then
                 echo "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP"
             else
@@ -63,7 +63,7 @@ case "$subcmd" in
             fi
         fi
         ;;
-    
+
     *)
         echo "Mock ip: subcommand $subcmd not implemented" >&2
         exit 1

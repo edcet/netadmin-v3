@@ -12,15 +12,15 @@ main() {
         log_error "Cannot detect WAN interface"
         exit 1
     }
-    
+
     # Export current health to JSON
     wan_export_health
-    
+
     # Check if WAN is ready
     if ! wan_is_ready; then
         local current_state
         current_state="$(get_current_state)"
-        
+
         # If we were active, degrade
         if [ "$current_state" = "$STATE_ACTIVE" ]; then
             set_state "$STATE_DEGRADED"
@@ -29,14 +29,14 @@ main() {
     else
         local current_state
         current_state="$(get_current_state)"
-        
+
         # If degraded, recover
         if [ "$current_state" = "$STATE_DEGRADED" ]; then
             set_state "$STATE_ACTIVE"
             log_info "WAN recovered, moved to ACTIVE state"
         fi
     fi
-    
+
     # Output health for queries
     if [ "${1:-}" = "--json" ]; then
         cat "$NETADMIN_HEALTH_JSON"

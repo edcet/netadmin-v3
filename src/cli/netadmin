@@ -51,17 +51,17 @@ show_version() {
 
 profile_switch() {
     local profile="$1"
-    
+
     case "$profile" in
         safe|verizon|verizon-bypass)
             echo "Switching to $profile profile..."
-            
+
             # Validate hardware compatibility
             if ! validate_hardware_for_profile "$profile"; then
                 echo "ERROR: Hardware validation failed for $profile"
                 return 1
             fi
-            
+
             # Apply rules
             if apply_rules "$profile"; then
                 nvram_set "netadmin_mode" "$profile"
@@ -85,7 +85,7 @@ profile_switch() {
 show_wan_state() {
     # Update health first
     "$NETADMIN_ROOT"/core/wan-state.sh >/dev/null 2>&1
-    
+
     # Show JSON
     if [ -f "$NETADMIN_HEALTH_JSON" ]; then
         cat "$NETADMIN_HEALTH_JSON"
@@ -104,7 +104,7 @@ show_state() {
 show_config() {
     local mode
     mode="$(nvram_get netadmin_mode safe)"
-    
+
     echo "netadmin Configuration"
     echo "======================"
     echo "Profile:       $mode"
@@ -146,7 +146,7 @@ manage_metrics() {
 
 show_logs() {
     local count="${1:-20}"
-    
+
     if [ -f "$NETADMIN_STATE_LOG" ]; then
         echo "netadmin State Machine Log (last $count entries)"
         echo "================================================="
@@ -159,13 +159,13 @@ show_logs() {
 health_check() {
     echo "Running WAN Health Check..."
     echo ""
-    
+
     local wan_if
     wan_if="$(wan_if_detect)" || {
         echo "ERROR: Cannot detect WAN interface"
         return 1
     }
-    
+
     # Run checks
     echo "[1/5] Checking carrier status..."
     if wan_carrier_up "$wan_if"; then
@@ -174,7 +174,7 @@ health_check() {
         echo "  ✗ Link DOWN"
         return 1
     fi
-    
+
     echo "[2/5] Checking IP acquisition..."
     if wan_has_ip "$wan_if"; then
         local ip
@@ -184,7 +184,7 @@ health_check() {
         echo "  ✗ No IP"
         return 1
     fi
-    
+
     echo "[3/5] Checking default route..."
     if wan_has_default_route; then
         echo "  ✓ Default route present"
@@ -192,7 +192,7 @@ health_check() {
         echo "  ✗ No default route"
         return 1
     fi
-    
+
     echo "[4/5] Checking gateway reachability..."
     if wan_gateway_reachable "$wan_if"; then
         echo "  ✓ Gateway reachable"
@@ -200,7 +200,7 @@ health_check() {
         echo "  ✗ Gateway unreachable"
         return 1
     fi
-    
+
     echo "[5/5] Checking TCP connectivity..."
     if wan_tcp_health "8.8.8.8" "53" || wan_tcp_health "1.1.1.1" "443"; then
         echo "  ✓ TCP handshake successful"
@@ -208,7 +208,7 @@ health_check() {
         echo "  ✗ TCP health check failed"
         return 1
     fi
-    
+
     echo ""
     echo "✓ All health checks passed"
 }
@@ -216,9 +216,9 @@ health_check() {
 verify_rules() {
     local profile
     profile="$(nvram_get netadmin_mode safe)"
-    
+
     echo "Verifying rules for profile: $profile"
-    
+
     if verify_rules_active "$profile"; then
         echo "✓ Rules are active"
         return 0
@@ -237,31 +237,31 @@ verify_rules() {
 migrate_from_v21() {
     echo "Migrating from netadmin v2.1 to v3.0"
     echo "====================================="
-    
+
     # Check for v2.1 NVRAM keys
     if ! nvram show | grep -q '^verizon_'; then
         echo "WARNING: No v2.1 configuration found"
         echo "Proceeding with fresh installation..."
     fi
-    
+
     echo "Backing up current configuration..."
     cp -r /jffs/scripts /jffs/scripts.v2.1.backup
     echo "✓ Backup created at /jffs/scripts.v2.1.backup"
-    
+
     # Migrate NVRAM keys
     echo "Migrating NVRAM keys..."
     local old_ttl_mode
     old_ttl_mode="$(nvram_get verizon_ttl_mode off)"
     nvram_set "netadmin_ttl_mode" "$old_ttl_mode"
-    
+
     local old_zapret
     old_zapret="$(nvram_get verizon_zapret 0)"
     nvram_set "netadmin_zapret" "$old_zapret"
-    
+
     nvram_set "netadmin_state" "0"
     nvram_set "netadmin_mode" "safe"
     nvram_commit
-    
+
     echo "✓ Migration complete"
     echo ""
     echo "Next steps:"
@@ -272,7 +272,7 @@ migrate_from_v21() {
 
 rollback() {
     echo "Rolling back to last known good state..."
-    
+
     if [ -d /jffs/scripts.v2.1.backup ]; then
         echo "Restoring from v2.1 backup..."
         rm -rf /jffs/scripts
@@ -289,7 +289,7 @@ rollback() {
 
 main() {
     local command="${1:-help}"
-    
+
     case "$command" in
         profile)
             profile_switch "${2:-safe}"

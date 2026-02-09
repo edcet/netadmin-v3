@@ -3,20 +3,20 @@
 
 Describe 'WAN Health Monitoring'
   Include './src/core/netadmin-lib.sh'
-  
+
   # Mock system calls for testing
   Mock_sys_class_net() {
     [ -d "/sys/class/net/eth0" ] && return 0
     return 1
   }
-  
+
   Describe 'WAN Interface Detection'
     It 'should detect eth0 as WAN interface'
       interface=$(wan_if_detect)
       Assert Equals "$interface" "eth0"
     End
   End
-  
+
   Describe 'Carrier Status'
     It 'should check carrier state'
       # This would normally read /sys/class/net/eth0/carrier
@@ -27,7 +27,7 @@ Describe 'WAN Health Monitoring'
       fi
     End
   End
-  
+
   Describe 'Health Check Functions'
     It 'should have health check functions available'
       Assert Callable wan_has_ip

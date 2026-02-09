@@ -13,7 +13,7 @@ case "$EVENT_TYPE" in
     bound)
         log_info "DHCP bound: $ip on $interface"
         set_state "$STATE_RULES_APPLY"
-        
+
         # Apply current profile
         local profile
         profile="$(nvram_get netadmin_mode safe)"
@@ -26,7 +26,7 @@ case "$EVENT_TYPE" in
             set_state "$STATE_SAFE"
         fi
         ;;
-    
+
     renew)
         log_info "DHCP renewing: $ip"
         # Verify rules still active
@@ -37,19 +37,19 @@ case "$EVENT_TYPE" in
             apply_rules "$profile"
         fi
         ;;
-    
+
     deconfig)
         log_warn "DHCP deconfig - lost IP"
         apply_rules "safe"
         set_state "$STATE_SAFE"
         ;;
-    
+
     leasefail)
         log_error "DHCP lease failed"
         apply_rules "safe"
         set_state "$STATE_SAFE"
         ;;
-    
+
     *)
         log_error "Unknown DHCP event: $EVENT_TYPE"
         exit 1

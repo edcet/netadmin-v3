@@ -76,7 +76,7 @@ done
 
 ```
 Packet Flow with Zapret:
-NIC (1000 Mbps) → Driver Queue → NFQUEUE → Userspace (nfqws) → 
+NIC (1000 Mbps) → Driver Queue → NFQUEUE → Userspace (nfqws) →
   DPI Detection → Decision → Kernel → iptables → NIC (195 Mbps)
                   ↓
            Single-threaded!

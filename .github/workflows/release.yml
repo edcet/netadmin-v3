@@ -11,18 +11,18 @@ jobs:
     permissions:
       contents: write
       packages: write
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-      
+
       - name: Install semantic-release
         run: |
           npm install -g semantic-release
@@ -30,18 +30,18 @@ jobs:
           npm install -g @semantic-release/git
           npm install -g @semantic-release/github
           npm install -g @semantic-release/commit-analyzer
-      
+
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release
-      
+
       - name: Generate artifacts
         run: |
           mkdir -p dist/
           tar -czf dist/netadmin-v3.tar.gz src/ install/ docs/
           echo "Artifacts generated in dist/"
-      
+
       - name: Upload release artifacts
         uses: actions/upload-artifact@v3
         with:

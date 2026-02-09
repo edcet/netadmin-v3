@@ -81,7 +81,7 @@ check_hardware_accel() {
     local ctf=$(nvram get ctf_disable)
     local fc=$(nvram get fc_disable)
     local runner=$(nvram get runner_disable_force)
-    
+
     # All should be 1 (disabled) for DPI bypass
     if [ "$ctf" = "1" ] && [ "$fc" = "1" ] && [ "$runner" = "1" ]; then
         echo "SAFE: Hardware acceleration disabled"

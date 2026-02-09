@@ -65,12 +65,14 @@ log_section "Documentation Link Check"
 find . -name '*.md' -type f | while read -r file; do
     # Check for broken internal links
     grep -oE '\[.*\]\([^)]+\)' "$file" | grep -oE '\([^)]+\)' | tr -d '()' | while read -r link; do
-        if [[ "$link" == ./* ]] || [[ "$link" == /* ]]; then
-            if [ ! -f "$link" ] && [ ! -d "$link" ]; then
-                log_error "Broken link in $file: $link"
-                exit 1
-            fi
-        fi
+        case "$link" in
+            ./*|/*)
+                if [ ! -f "$link" ] && [ ! -d "$link" ]; then
+                    log_error "Broken link in $file: $link"
+                    exit 1
+                fi
+                ;;
+        esac
     done
     log_ok "$file"
 done

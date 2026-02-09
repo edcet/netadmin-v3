@@ -27,13 +27,13 @@ case "${1:-}" in
             echo ""
         fi
         ;;
-    
+
     set)
         # Format: nvram set key=value
         pair="$2"
         key="${pair%%=*}"
         value="${pair#*=}"
-        
+
         # Update or append
         if grep -q "^${key}=" "$NVRAM_STORE" 2>/dev/null; then
             # Update existing
@@ -43,24 +43,24 @@ case "${1:-}" in
             echo "${key}=${value}" >> "$NVRAM_STORE"
         fi
         ;;
-    
+
     commit)
         # In real nvram, this writes to flash
         # In mock, we just sync to ensure writes are visible
         sync
         ;;
-    
+
     show)
         # Show all NVRAM
         cat "$NVRAM_STORE" 2>/dev/null || true
         ;;
-    
+
     unset)
         key="$2"
         # Remove key
         sed -i "/^${key}=/d" "$NVRAM_STORE"
         ;;
-    
+
     *)
         echo "Mock nvram: unknown command $1" >&2
         exit 1

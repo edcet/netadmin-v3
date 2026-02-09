@@ -1,0 +1,8 @@
+#!/bin/sh
+# Stability Framework: WebUI Restart
+# BEGIN STABILITY FRAMEWORK
+if [ "$1" = "restart" ] && [ "$2" = "stability_addon" ]; then
+    logger -t stability "WebUI triggered restart"
+    /jffs/scripts/firewall-start
+fi
+# END STABILITY FRAMEWORK

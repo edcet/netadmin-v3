@@ -1,0 +1,11 @@
+#!/bin/sh
+# Stability Framework: WAN Event Hook
+INTERFACE="$1"
+ACTION="$2"
+
+if [ "$ACTION" = "disconnected" ]; then
+    logger -t stability "WAN $INTERFACE disconnected - Triggering resync"
+    # Sleep to allow driver to settle
+    sleep 10
+    /jffs/scripts/firewall-start
+fi

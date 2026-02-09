@@ -67,7 +67,7 @@ Runner is active.
 my_function() {
     local var1="$1"  # Always quote
     local var2="$2"
-    
+
     # Use [[ ]] in bash, [ ] in POSIX
     if [ "$var1" = "value" ]; then
         echo "match"

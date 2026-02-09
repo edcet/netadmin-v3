@@ -57,7 +57,7 @@ case "$action" in
         # Append/Insert rule
         echo "[$table] $chain:$rule" >> "$IPTABLES_STATE"
         ;;
-    
+
     D)
         # Delete rule
         # Simple mock: remove first matching line
@@ -65,12 +65,12 @@ case "$action" in
             sed -i "\|\[$table\] $chain:.*$rule|d" "$IPTABLES_STATE"
         fi
         ;;
-    
+
     N)
         # Create new chain
         echo "[$table] CHAIN:$chain" >> "$IPTABLES_STATE"
         ;;
-    
+
     L)
         # List rules
         if [ -n "$chain" ]; then
@@ -79,7 +79,7 @@ case "$action" in
             grep "\[$table\]" "$IPTABLES_STATE" 2>/dev/null || echo "Chain INPUT (policy ACCEPT)"
         fi
         ;;
-    
+
     F)
         # Flush rules
         if [ -n "$chain" ]; then
@@ -88,11 +88,11 @@ case "$action" in
             sed -i "\|\[$table\]|d" "$IPTABLES_STATE"
         fi
         ;;
-    
+
     "")
         # No action, just exit
         ;;
-    
+
     *)
         echo "Mock iptables: unknown action $action" >&2
         exit 1

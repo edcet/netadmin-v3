@@ -40,15 +40,13 @@ set_state() {
     local new_state="$1"
     local old_state
     old_state="$(get_current_state)"
-    
+
     # Validate state transition (whitelist valid transitions)
+    # Normal flow: 0-1, 1-2, 2-3, 3-4, 4-1, 4-3
+    # Error recovery: 1-5, 2-5, 3-5, 4-5
+    # Force safe: 0-5, 2-0, 5-1
     case "$old_state-$new_state" in
-        # Normal flow
-        0-1|1-2|2-3|3-4|4-1|4-3|\
-        # Error recovery
-        1-5|2-5|3-5|4-5|\
-        # Force safe
-        0-5|2-0|5-1)
+        0-1|1-2|2-3|3-4|4-1|4-3|1-5|2-5|3-5|4-5|0-5|2-0|5-1)
             echo "$new_state" > "$NETADMIN_STATE_FILE"
             _log_state_change "$old_state" "$new_state"
             logger -t netadmin "STATE: $(state_name "$old_state") → $(state_name "$new_state")"
@@ -105,7 +103,7 @@ get_hardware_accel_status() {
     ctf="$(check_ctf_status)"
     fc="$(check_fc_status)"
     runner="$(check_runner_status)"
-    
+
     # Return JSON
     cat << EOF
 {"ctf_enabled": $ctf, "fc_enabled": $fc, "runner_enabled": $runner}
@@ -118,7 +116,7 @@ validate_hardware_for_profile() {
     ctf="$(check_ctf_status)"
     fc="$(check_fc_status)"
     runner="$(check_runner_status)"
-    
+
     case "$profile" in
         safe)
             # Safe mode works with any hardware config
@@ -158,13 +156,13 @@ wan_if_detect() {
         echo "$wan_if"
         return 0
     fi
-    
+
     # Fallback to eth0
     if [ -d /sys/class/net/eth0 ]; then
         echo "eth0"
         return 0
     fi
-    
+
     logger -t netadmin "ERROR: Cannot detect WAN interface"
     return 1
 }
@@ -172,7 +170,7 @@ wan_if_detect() {
 wan_carrier_up() {
     local wan_if="$1"
     local carrier
-    
+
     carrier="$(cat "/sys/class/net/$wan_if/carrier" 2>/dev/null || echo "0")"
     [ "$carrier" = "1" ]
 }
@@ -189,34 +187,34 @@ wan_has_default_route() {
 wan_gateway_reachable() {
     local wan_if="$1"
     local gateway
-    
+
     gateway="$(ip -4 route show dev "$wan_if" | grep -oE 'via [^ ]*' | awk '{print $2}')"
     if [ -z "$gateway" ]; then
         gateway="$(ip -4 route show | grep '^default' | awk '{print $3}')"
     fi
-    
+
     if [ -z "$gateway" ]; then
         return 1
     fi
-    
+
     ping -c 1 -W 2 "$gateway" >/dev/null 2>&1
 }
 
 wan_tcp_health() {
     local target="${1:-1.1.1.1}" port="${2:-443}" timeout=3
-    
+
     # Try TCP handshake using /dev/tcp if available
     if command -v timeout >/dev/null; then
         timeout "$timeout" bash -c "echo > /dev/tcp/$target/$port" 2>/dev/null
         return $?
     fi
-    
+
     # Fallback: try with busybox nc (netcat)
     if command -v nc >/dev/null; then
         nc -zv -w 2 "$target" "$port" >/dev/null 2>&1
         return $?
     fi
-    
+
     # If neither available, skip TCP check
     return 0
 }
@@ -226,23 +224,23 @@ wan_tcp_health() {
 wan_is_ready() {
     local wan_if
     wan_if="$(wan_if_detect)" || return 1
-    
+
     # All checks must pass
      wan_carrier_up "$wan_if" || return 1
     wan_has_ip "$wan_if" || return 1
     wan_has_default_route || return 1
     wan_gateway_reachable "$wan_if" || return 1
-    
+
     # TCP health (one of two DNS or HTTPS should work)
     wan_tcp_health "8.8.8.8" "53" || wan_tcp_health "1.1.1.1" "443" || return 1
-    
+
     return 0
 }
 
 wan_export_health() {
     local wan_if
     wan_if="$(wan_if_detect)" || wan_if="unknown"
-    
+
     local carrier ip default_gw gateway_ok tcp_ok ready
     carrier="$(wan_carrier_up "$wan_if" && echo 1 || echo 0)"
     ip="$(ip -4 addr show dev "$wan_if" 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print $2}')"
@@ -250,7 +248,7 @@ wan_export_health() {
     gateway_ok="$(wan_gateway_reachable "$wan_if" && echo 1 || echo 0)"
     tcp_ok="$(wan_tcp_health "8.8.8.8" "53" && echo 1 || echo 0)"
     ready="$(wan_is_ready && echo 1 || echo 0)"
-    
+
     cat > "$NETADMIN_HEALTH_JSON" << EOF
 {
   "interface": "$wan_if",
@@ -315,15 +313,15 @@ nvram_commit() {
 apply_rules() {
     local profile="$1"
     local result=0
-    
+
     logger -t netadmin "Applying rules for profile: $profile"
-    
+
     # Validate before applying
     validate_hardware_for_profile "$profile" || {
         logger -t netadmin "ERROR: Hardware validation failed for $profile"
         return 1
     }
-    
+
     # Source profile script
     if [ -f "/jffs/scripts/netadmin/profiles/$profile.sh" ]; then
         # shellcheck source=/dev/null
@@ -332,7 +330,7 @@ apply_rules() {
         logger -t netadmin "ERROR: Profile script not found: $profile"
         return 1
     fi
-    
+
     return $result
 }
 

@@ -1,0 +1,68 @@
+#!/bin/sh
+# Stability Framework: Firewall Start Hook
+# Handles Tether Cloak (TTL/HL/MSS) and Time Preservation Rules
+
+# Wait for ipheth module (USB tether) - Critical timing for GT-AX6000
+timeout=30
+while [ $timeout -gt 0 ] && ! lsmod | grep -q ipheth; do
+    sleep 1; timeout=$((timeout-1))
+done
+
+CUSTOM_SETTINGS="/jffs/addons/custom_settings.txt"
+[ ! -f "$CUSTOM_SETTINGS" ] && exit 0
+
+# Parse settings (Merlin API - direct grep for speed in hook)
+eval $(awk -F= '/^stability_/ {print $1"=\""$2"\""}' "$CUSTOM_SETTINGS")
+
+# Defaults if settings missing
+TTL4=${stability_ttl_ipv4:-65}
+HL6=${stability_hl_ipv6:-65}
+MTU=${stability_mtu:-1428}
+
+# WAN interface detection (usb0/eth8 fallback)
+WAN_IF=""
+# Check for active link on common tether interfaces
+for ifname in usb0 eth8; do
+    ip link show "$ifname" >/dev/null 2>&1 && { WAN_IF="$ifname"; break; }
+done
+
+# If no tether interface, fallback to NVRAM wan0 (for standard WAN stability)
+if [ -z "$WAN_IF" ]; then
+    WAN_IF=$(nvram get wan0_ifname)
+fi
+[ -z "$WAN_IF" ] && exit 0
+
+MSS4=$((MTU-40))
+MSS6=$((MTU-60))
+
+# --- Module 1: Tether Cloak (Mangle Rules) ---
+# IPv4 TTL
+iptables -t mangle -D POSTROUTING -o "$WAN_IF" -j TTL --ttl-set "$TTL4" 2>/dev/null
+iptables -t mangle -A POSTROUTING -o "$WAN_IF" -j TTL --ttl-set "$TTL4"
+
+# IPv6 Hop Limit
+ip6tables -t mangle -D POSTROUTING -o "$WAN_IF" -j HL --hl-set "$HL6" 2>/dev/null
+ip6tables -t mangle -A POSTROUTING -o "$WAN_IF" -j HL --hl-set "$HL6"
+
+# MSS Clamping (TCP Signature Evasion)
+iptables -t mangle -D POSTROUTING -p tcp --tcp-flags SYN,RST SYN -o "$WAN_IF" -j TCPMSS --set-mss "$MSS4" 2>/dev/null
+iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -o "$WAN_IF" -j TCPMSS --set-mss "$MSS4"
+
+ip6tables -t mangle -D POSTROUTING -p tcp --tcp-flags SYN,RST SYN -o "$WAN_IF" -j TCPMSS --set-mss "$MSS6" 2>/dev/null
+ip6tables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -o "$WAN_IF" -j TCPMSS --set-mss "$MSS6"
+
+# --- Module 2: NAT66 (IPv6 Masquerade) ---
+# Essential for carrier grade NAT bypass on cellular
+sysctl -w net.ipv6.conf.all.forwarding=1 2>/dev/null
+sysctl -w "net.ipv6.conf.$WAN_IF.forwarding=1" 2>/dev/null
+ip6tables -t nat -D POSTROUTING -o "$WAN_IF" -j MASQUERADE 2>/dev/null
+ip6tables -t nat -A POSTROUTING -o "$WAN_IF" -j MASQUERADE
+
+# --- Module 3: Connectivity & Mesh ---
+# Allow Tailscale UDP (41641) if present
+iptables -D INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
+iptables -I INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
+ip6tables -D INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
+ip6tables -I INPUT -i "$WAN_IF" -p udp --dport 41641 -j ACCEPT 2>/dev/null
+
+logger -t stability "Firewall rules applied on $WAN_IF [TTL:$TTL4 HL:$HL6 MTU:$MTU]"

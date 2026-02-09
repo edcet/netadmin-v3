@@ -28,7 +28,7 @@ cleanup() {
 boot_watchdog() {
     local attempts
     attempts="$(get_boot_attempt)"
-    
+
     if should_fallback_safe; then
         log_error "Boot failures detected ($attempts attempts), activating SAFE profile"
         apply_rules "safe"
@@ -38,7 +38,7 @@ boot_watchdog() {
         nvram_commit
         exit 0
     fi
-    
+
     # Arm watchdog: if system survives this boot, counter will be reset
     increment_boot_attempt
 }
@@ -50,9 +50,9 @@ state_machine_watchdog() {
         current_state="$(get_current_state)"
         timestamp="$(stat -c %Y "$NETADMIN_STATE_FILE" 2>/dev/null || echo 0)"
         state_age=$(($(date +%s) - timestamp))
-        
+
         case "$current_state" in
-            $STATE_WAN_WAIT)
+            "$STATE_WAN_WAIT")
                 # Timeout after 60s waiting for IP
                 if [ "$state_age" -gt "$STATE_TIMEOUT" ]; then
                     log_warn "WAN_WAIT timeout ($state_age > $STATE_TIMEOUT), reverting to SAFE"
@@ -60,8 +60,8 @@ state_machine_watchdog() {
                     set_state "$STATE_SAFE"
                 fi
                 ;;
-            
-            $STATE_ACTIVE)
+
+            "$STATE_ACTIVE")
                 # Verify rules are still present
                 local current_profile
                 current_profile="$(nvram_get netadmin_mode safe)"
@@ -71,7 +71,7 @@ state_machine_watchdog() {
                 fi
                 ;;
         esac
-        
+
         sleep "$WATCHDOG_INTERVAL"
     done
 }
@@ -81,24 +81,24 @@ health_check_watchdog() {
     while true; do
         # Run health check
         /jffs/scripts/netadmin/core/wan-state.sh >/dev/null 2>&1
-        
+
         sleep "$HEALTH_CHECK_INTERVAL"
     done
 }
 
 main() {
     log_info "Starting netadmin watchdog"
-    
+
     # Boot watchdog runs once
     boot_watchdog
-    
+
     # Start background watchdogs
     state_machine_watchdog &
     STATE_WATCHDOG_PID=$!
-    
+
     health_check_watchdog &
     HEALTH_WATCHDOG_PID=$!
-    
+
     # Keep main process alive
     wait
 }
