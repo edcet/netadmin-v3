@@ -52,7 +52,7 @@ state_machine_watchdog() {
         state_age=$(($(date +%s) - timestamp))
 
         case "$current_state" in
-            $STATE_WAN_WAIT)
+            "$STATE_WAN_WAIT")
                 # Timeout after 60s waiting for IP
                 if [ "$state_age" -gt "$STATE_TIMEOUT" ]; then
                     log_warn "WAN_WAIT timeout ($state_age > $STATE_TIMEOUT), reverting to SAFE"
@@ -61,7 +61,7 @@ state_machine_watchdog() {
                 fi
                 ;;
 
-            $STATE_ACTIVE)
+            "$STATE_ACTIVE")
                 # Verify rules are still present
                 local current_profile
                 current_profile="$(nvram_get netadmin_mode safe)"

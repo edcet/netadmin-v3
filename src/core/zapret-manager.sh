@@ -63,6 +63,7 @@ zapret_start() {
     iptables -t mangle -I FORWARD -p tcp --dport 443 -j NFQUEUE --queue-num 200
 
     # Start nfqws
+    # shellcheck disable=SC2086
     $NFQWS_BIN $NFQWS_PARAMS > "$NFQWS_LOG" 2>&1
 
     # Wait for startup
@@ -141,7 +142,7 @@ zapret_status() {
         if [ -f /proc/net/netfilter/nfnetlink_queue ]; then
             echo ""
             echo "NFQUEUE Stats:"
-            cat /proc/net/netfilter/nfnetlink_queue | grep -E 'queue|packets' || echo "No stats available"
+            grep -E 'queue|packets' /proc/net/netfilter/nfnetlink_queue || echo "No stats available"
         fi
 
         return 0
